@@ -1,0 +1,65 @@
+---
+title: "Capstone Project"
+author: "Jessica Ham"
+date: "5/30/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load/Explore the Data
+
+### Load
+```{r}
+songs.df <- read.csv('C:/Users/Jess/Documents/CSU File Storage/Tracks_w_features.csv', header=TRUE)[,c('id','artist','song','group','danceability','energy','key','loudness','mode','speechiness','acousticness','instrumentalness','valence','tempo','duration_ms','time_signature')]
+```
+### Explore
+```{r}
+dim(songs.df)
+data.frame(mean=sapply(songs.df[,5:16], mean, na.rm=TRUE), 
+           sd=sapply(songs.df[,5:16], sd, na.rm=TRUE),  
+           min=sapply(songs.df[,5:16], min, na.rm=TRUE), 
+           max=sapply(songs.df[,5:16], max, na.rm=TRUE), 
+           median=sapply(songs.df[,5:16], median, na.rm=TRUE), 
+           miss.val=sapply(songs.df[,5:16],function(x) 
+             sum(length(which(is.na(x))))))
+songs.df$live <- 1* (songs.df$group== "Live")
+head(songs.df[,c(2,4:7,17)])
+tail(songs.df[,c(2,4:7,17)])
+plot(songs.df$group, xlab="Live Shows")
+hist(songs.df$live, xlab="Live")
+```
+
+## Logistic Regression
+```{r}
+logit.reg <- glm(live ~ ., data = songs.df[,5:17], family = "binomial")
+options(scipen = 999)
+summary(logit.reg)
+```
+### Logistic Equation
+Logit(Live=Yes)= -7.7998 + 21.2693 Instrumentalness + 3.1511 Speechiness - 1.9223 Danceability + 1.5197 Time Signature + 1.3961 Energy + 1.1387 Acousticness + 0.7522 Mode + 0.6260 Valence - 0.2164 Loudness + 0.0468 Key + 0.0055 Tempo 
+
+### ROC Curve and Confusion Matrix
+```{r}
+library(caret)
+library(pROC)
+pred <- predict(logit.reg)
+pROC_obj <- roc(songs.df$live,pred,
+                smoothed = TRUE,
+                ci=TRUE, ci.alpha=0.9, stratified=FALSE,
+                plot=TRUE, auc.polygon=TRUE, max.auc.polygon=TRUE, grid=TRUE,
+                print.auc=TRUE, show.thres=TRUE)
+
+
+sens.ci <- ci.se(pROC_obj)
+plot(sens.ci, type="shape", col="lightblue")
+plot(sens.ci, type="bars")
+
+class.prediction <- ifelse(pred>0.5, 1, 0)
+confusionMatrix(factor(class.prediction), factor(songs.df$live))
+```
