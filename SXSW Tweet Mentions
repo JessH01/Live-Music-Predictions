@@ -1,0 +1,99 @@
+#Import Modules
+import pandas
+
+
+#Read in Data
+performers= pandas.read_excel('C:/Users/Jess/Documents/CSU File Storage/SXSW_2017_Lineup.xlsx')
+tweets= pandas.read_excel('C:/Users/Jess/Documents/CSU File Storage/SXSW_Tweets.xlsx', usecols=[3])
+tweets= tweets.applymap(str)
+
+#Convert dataframes to lists that can be searched
+performer_list= performers.iloc[:,0].values.tolist()
+tweet_list= tweets.iloc[:,0].values.tolist()
+
+#Define search functions
+#Search band name, minus leading 'The"
+def formal (perf,tweet):
+    list_f=[]
+    if perf.startswith('The '):
+        ss=perf[4:]
+    else:
+        ss=perf
+    for x in tweet:
+        if ss in x:
+            list_f.append(x)
+    return list_f
+#Search without case
+def case (perf,tweet):
+    list_c=[]
+    if perf.isupper()==False:
+        if perf.startswith('The '):
+            ss=perf[4:]
+        else:
+            ss=perf
+        for x in tweet:
+            if ss.lower() in x:
+                list_c.append(x)
+    return list_c
+#Search hashtags (no spaces in name, both case and noncase sensitive)
+def tags (perf,tweet):
+    list_t=[]
+    if perf.startswith('The '):
+        ss=perf[4:]
+    else:
+        ss=perf
+    if len(ss.split())>1:
+        ht=ss.replace(' ','')
+        for x in tweet:
+            if ht in x:
+                list_t.append(x)
+            if ht.isupper()==False:
+                if ht.lower() in x:
+                    list_t.append(x)
+    return list_t
+#Search Names that have an 'and' or 'with' as separate, to ensure max coverage
+def split (perf, tweet):
+    list_s=[]
+    split_perf=[]
+    if '&' in perf:
+        split_perf=perf.split(' & ',2)
+    elif 'and' in perf:
+        split_perf=perf.split(' and ',2)
+    elif 'with' in perf:
+        split_perf=perf.split(' with ',2)
+    for y in split_perf:
+        lf=formal(y,tweet_list)
+        lc=case(y,tweet_list)
+        lt=tags(y,tweet_list)
+        if len(lf)>0:
+            list_s.extend(lf)
+        if len(lc)>0:
+            list_s.extend(lc)
+        if len(lt)>0:
+            list_s.extend(lt)
+    return list_s
+
+#Code Begins
+
+#Inspect all performers against all tweets
+count_list=[]
+for z in performer_list:
+    ptc=[]
+    f=formal(z,tweet_list)
+    c=case(z,tweet_list)
+    t=tags(z,tweet_list)
+    s=split(z,tweet_list)
+    all_count=len(f)+len(c)+len(t)+len(s)
+    ptc=[z,all_count]
+    count_list.append(ptc)
+
+#Convert list of bands and counts to dataframe
+Count_DF= pandas.DataFrame(count_list,columns=['Band Name','Tweet Mentions'])
+
+#Sort by most mentioned band
+Count_DF=Count_DF.sort_values(by='Tweet Mentions',ascending=False)
+Count_DF=Count_DF.reset_index(drop=True)
+
+#Shorten to top bands and export
+Exp_DF=Count_DF[0:100]
+Exp_DF.to_csv('C:/Users/Jess/Documents/CSU File Storage/SXSW_2017_TopBands.csv')
